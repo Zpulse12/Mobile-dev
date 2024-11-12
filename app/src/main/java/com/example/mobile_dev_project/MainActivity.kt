@@ -28,12 +28,18 @@ class MainActivity : ComponentActivity() {
                 )
                 "login" -> LoginScreen(
                     auth = auth,
-                    onLoginSuccess = { currentScreen = "welcome" }
+                    onLoginSuccess = { currentScreen = "home" }
                 )
                 "register" -> RegisterScreen(
                     auth = auth,
                     db = db,
                     onRegisterSuccess = { currentScreen = "welcome" }
+                )
+                "home" -> MainScreen(
+                    onLogoutClick = {
+                        auth.signOut()
+                        currentScreen = "welcome"
+                    }
                 )
             }
         }
