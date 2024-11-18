@@ -20,7 +20,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.toObject
 
-
 data class User(
     val username: String = "",
     val email: String = "",
@@ -127,7 +126,9 @@ fun ProfielScreen(modifier: Modifier = Modifier) {
             TextSection("Beschrijving", description, isEditing) { description = it }
             TextSection("Adres", address, isEditing) { address = it }
 
-            ApparatuurVerhuurSection()
+            if (!isEditing) {
+                ApparatuurVerhuurSection()
+            }
 
             if (isEditing) {
                 Button(
@@ -185,7 +186,6 @@ fun TextSection(label: String, text: String, isEditing: Boolean, onValueChange: 
                     .fillMaxWidth()
                     .background(Color(0xFFF0F0F0), RoundedCornerShape(8.dp))
                     .padding(12.dp)
-                    .align(Alignment.Start)
             )
         }
     }
@@ -245,7 +245,6 @@ fun ApparatuurVerhuurSection() {
         }
     }
 }
-
 
 private fun saveUserData(
     db: FirebaseFirestore,
