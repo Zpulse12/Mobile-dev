@@ -1,5 +1,6 @@
 package com.example.mobile_dev_project
 
+import ProfielScreen
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
