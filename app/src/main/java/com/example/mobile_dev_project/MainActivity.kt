@@ -19,29 +19,7 @@ class MainActivity : ComponentActivity() {
         db = FirebaseFirestore.getInstance()
 
         setContent {
-            var currentScreen by remember { mutableStateOf("welcome") }
-
-            when (currentScreen) {
-                "welcome" -> WelcomeScreen(
-                    onLoginClick = { currentScreen = "login" },
-                    onRegisterClick = { currentScreen = "register" }
-                )
-                "login" -> LoginScreen(
-                    auth = auth,
-                    onLoginSuccess = { currentScreen = "home" }
-                )
-                "register" -> RegisterScreen(
-                    auth = auth,
-                    db = db,
-                    onRegisterSuccess = { currentScreen = "welcome" }
-                )
-                "home" -> MainScreen(
-                    onLogoutClick = {
-                        auth.signOut()
-                        currentScreen = "welcome"
-                    }
-                )
-            }
+            AppNavigation(auth = auth)
         }
     }
 }
