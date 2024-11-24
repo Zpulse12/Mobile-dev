@@ -3,6 +3,8 @@ package com.example.mobile_dev_project
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +39,19 @@ fun ToestellenScreen(
         }
     }
 
+    fun deleteToestel(toestel: Toestel) {
+        db.collection("toestellen")
+            .whereEqualTo("name", toestel.name) // Assuming 'name' is unique; adjust if necessary
+            .whereEqualTo("userId", userId)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                for (document in snapshot.documents) {
+                    db.collection("toestellen").document(document.id).delete()
+                }
+                toestellen.remove(toestel)
+            }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -56,14 +71,14 @@ fun ToestellenScreen(
 
         LazyColumn {
             items(toestellen) { toestel ->
-                ToestelCard(toestel)
+                ToestelCard(toestel, onDelete = { deleteToestel(it) })
             }
         }
     }
 }
 
 @Composable
-fun ToestelCard(toestel: Toestel) {
+fun ToestelCard(toestel: Toestel, onDelete: (Toestel) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -74,7 +89,10 @@ fun ToestelCard(toestel: Toestel) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 androidx.compose.foundation.Image(
                     painter = coil.compose.rememberAsyncImagePainter(toestel.photoUrl),
                     contentDescription = "Toestel Foto",
@@ -93,6 +111,16 @@ fun ToestelCard(toestel: Toestel) {
                         text = "${toestel.price} € per ${toestel.priceUnit}",
                         color = Color(0xFF4CAF50),
                         style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                IconButton(
+                    onClick = { onDelete(toestel) },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete, // Use a Material Design delete icon
+                        contentDescription = "Delete Toestel",
+                        tint = Color.Red
                     )
                 }
             }
@@ -117,6 +145,7 @@ fun ToestelCard(toestel: Toestel) {
         }
     }
 }
+
 
 data class Toestel(
     val name: String = "",
