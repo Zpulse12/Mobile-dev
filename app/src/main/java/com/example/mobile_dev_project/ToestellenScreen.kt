@@ -1,5 +1,6 @@
 package com.example.mobile_dev_project
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun ToestellenScreen(
@@ -32,9 +35,51 @@ fun ToestellenScreen(
                 .whereEqualTo("userId", userId)
                 .get()
                 .addOnSuccessListener { snapshot ->
+                    toestellen.clear()
                     snapshot.documents.forEach { document ->
-                        document.toObject(Toestel::class.java)?.let { toestellen.add(it) }
+                        try {
+                            val data = document.data
+                            if (data != null) {
+                                // Get the date maps from Firestore
+                                val startDateMap = data["availabilityStart"] as? Map<*, *>
+                                val endDateMap = data["availabilityEnd"] as? Map<*, *>
+
+                                // Parse the dates
+                                val startDate = if (startDateMap != null) {
+                                    LocalDate.of(
+                                        (startDateMap["year"] as Long).toInt(),
+                                        (startDateMap["monthValue"] as Long).toInt(),
+                                        (startDateMap["dayOfMonth"] as Long).toInt()
+                                    )
+                                } else LocalDate.now()
+
+                                val endDate = if (endDateMap != null) {
+                                    LocalDate.of(
+                                        (endDateMap["year"] as Long).toInt(),
+                                        (endDateMap["monthValue"] as Long).toInt(),
+                                        (endDateMap["dayOfMonth"] as Long).toInt()
+                                    )
+                                } else LocalDate.now()
+
+                                val toestel = Toestel(
+                                    name = data["name"] as? String ?: "",
+                                    description = data["description"] as? String ?: "",
+                                    price = (data["price"] as? Number)?.toDouble() ?: 0.0,
+                                    priceUnit = data["priceUnit"] as? String ?: "",
+                                    availabilityStart = startDate,
+                                    availabilityEnd = endDate,
+                                    photoUrl = data["photoUrl"] as? String ?: "",
+                                    userId = data["userId"] as? String ?: ""
+                                )
+                                toestellen.add(toestel)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("ToestellenScreen", "Error parsing toestel: ${e.message}", e)
+                        }
                     }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("ToestellenScreen", "Error loading toestellen", e)
                 }
         }
     }
@@ -137,8 +182,9 @@ fun ToestelCard(toestel: Toestel, onDelete: (Toestel) -> Unit) {
                 modifier = Modifier.padding(top = 4.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
+            val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
             Text(
-                text = "Beschikbaar van ${toestel.availabilityFrom} tot ${toestel.availabilityTo}",
+                text = "Beschikbaar van ${toestel.availabilityStart.format(dateFormatter)} tot ${toestel.availabilityEnd.format(dateFormatter)}",
                 color = Color.White,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -152,8 +198,8 @@ data class Toestel(
     val description: String = "",
     val price: Double = 0.0,
     val priceUnit: String = "",
-    val availabilityFrom: String = "",
-    val availabilityTo: String = "",
+    val availabilityStart: LocalDate = LocalDate.now(),
+    val availabilityEnd: LocalDate = LocalDate.now(),
     val photoUrl: String = "",
     val userId: String = "" // Added to link toestel with user
 )
