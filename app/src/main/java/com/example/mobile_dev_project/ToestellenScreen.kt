@@ -131,9 +131,10 @@ fun ToestellenScreen(
 
 @Composable
 fun ToestelCard(
-    toestel: Toestel, 
-    onDelete: (Toestel) -> Unit,
-    onEdit: (Toestel) -> Unit
+    toestel: Toestel,
+    showActions: Boolean = true,
+    onDelete: (Toestel) -> Unit = {},
+    onEdit: (Toestel) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -169,26 +170,28 @@ fun ToestelCard(
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
-                Row {
-                    IconButton(
-                        onClick = { onEdit(toestel) },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit Toestel",
-                            tint = Color(0xFF4CAF50)
-                        )
-                    }
-                    IconButton(
-                        onClick = { onDelete(toestel) },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete Toestel",
-                            tint = Color.Red
-                        )
+                if (showActions) {
+                    Row {
+                        IconButton(
+                            onClick = { onEdit(toestel) },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Toestel",
+                                tint = Color(0xFF4CAF50)
+                            )
+                        }
+                        IconButton(
+                            onClick = { onDelete(toestel) },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete Toestel",
+                                tint = Color.Red
+                            )
+                        }
                     }
                 }
             }
