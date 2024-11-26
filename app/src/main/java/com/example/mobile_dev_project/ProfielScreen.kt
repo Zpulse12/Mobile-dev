@@ -40,7 +40,7 @@ data class User(
 )
 
 @Composable
-fun ProfielScreen(modifier: Modifier = Modifier) {
+fun ProfielScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -82,6 +82,7 @@ fun ProfielScreen(modifier: Modifier = Modifier) {
                 }
         }
     }
+
 
     Column(
         modifier = modifier
@@ -230,6 +231,19 @@ fun ProfielScreen(modifier: Modifier = Modifier) {
                         Text("Opslaan", color = Color.White)
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onLogoutClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .height(50.dp),
+                colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF4CAF50))
+            ) {
+                Text("Log uit", color = Color.White)
             }
         }
     }

@@ -27,7 +27,7 @@ fun MainScreen(
                 onNavigateToAddToestel = onNavigateToAddToestel,
                 onNavigateToEditToestel = onNavigateToEditToestel
             )
-            "profile" -> ProfielScreen(modifier = Modifier.padding(paddingValues))
+            "profile" -> ProfielScreen(onLogoutClick = onLogoutClick, modifier = Modifier.padding(paddingValues))
         }
     }
 }
