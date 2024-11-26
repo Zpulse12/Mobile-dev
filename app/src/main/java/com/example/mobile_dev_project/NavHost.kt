@@ -6,6 +6,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 @Composable
 fun AppNavigation(auth: FirebaseAuth) {
@@ -39,12 +41,25 @@ fun AppNavigation(auth: FirebaseAuth) {
                         popUpTo("home") { inclusive = true }
                     }
                 },
-                onNavigateToAddToestel = { navController.navigate("addToestel") }
+                onNavigateToAddToestel = { navController.navigate("addToestel") },
+                onNavigateToEditToestel = { toestelId -> 
+                    navController.navigate("editToestel/$toestelId")
+                }
             )
         }
         composable("addToestel") {
             AddToestelScreen(
                 onToestelAdded = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "editToestel/{toestelId}",
+            arguments = listOf(navArgument("toestelId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val toestelId = backStackEntry.arguments?.getString("toestelId") ?: ""
+            EditToestelScreen(
+                toestelId = toestelId,
+                onToestelUpdated = { navController.popBackStack() }
             )
         }
     }

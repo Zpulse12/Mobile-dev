@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +21,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun ToestellenScreen(
     onNavigateToAddToestel: () -> Unit,
+    onNavigateToEditToestel: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val auth = FirebaseAuth.getInstance()
@@ -62,6 +64,7 @@ fun ToestellenScreen(
                                 } else LocalDate.now()
 
                                 val toestel = Toestel(
+                                    id = document.id,
                                     name = data["name"] as? String ?: "",
                                     description = data["description"] as? String ?: "",
                                     price = (data["price"] as? Number)?.toDouble() ?: 0.0,
@@ -116,14 +119,22 @@ fun ToestellenScreen(
 
         LazyColumn {
             items(toestellen) { toestel ->
-                ToestelCard(toestel, onDelete = { deleteToestel(it) })
+                ToestelCard(
+                    toestel = toestel,
+                    onDelete = { deleteToestel(it) },
+                    onEdit = { onNavigateToEditToestel(it.id) }
+                )
             }
         }
     }
 }
 
 @Composable
-fun ToestelCard(toestel: Toestel, onDelete: (Toestel) -> Unit) {
+fun ToestelCard(
+    toestel: Toestel, 
+    onDelete: (Toestel) -> Unit,
+    onEdit: (Toestel) -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -158,15 +169,27 @@ fun ToestelCard(toestel: Toestel, onDelete: (Toestel) -> Unit) {
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
-                IconButton(
-                    onClick = { onDelete(toestel) },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete, // Use a Material Design delete icon
-                        contentDescription = "Delete Toestel",
-                        tint = Color.Red
-                    )
+                Row {
+                    IconButton(
+                        onClick = { onEdit(toestel) },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Toestel",
+                            tint = Color(0xFF4CAF50)
+                        )
+                    }
+                    IconButton(
+                        onClick = { onDelete(toestel) },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete Toestel",
+                            tint = Color.Red
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -194,6 +217,7 @@ fun ToestelCard(toestel: Toestel, onDelete: (Toestel) -> Unit) {
 
 
 data class Toestel(
+    val id: String = "",
     val name: String = "",
     val description: String = "",
     val price: Double = 0.0,
@@ -201,5 +225,5 @@ data class Toestel(
     val availabilityStart: LocalDate = LocalDate.now(),
     val availabilityEnd: LocalDate = LocalDate.now(),
     val photoUrl: String = "",
-    val userId: String = "" // Added to link toestel with user
+    val userId: String = ""
 )
