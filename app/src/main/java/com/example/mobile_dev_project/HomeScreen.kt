@@ -13,11 +13,27 @@ import com.google.firebase.firestore.FirebaseFirestore
 import java.time.LocalDate
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 
 @Composable
 fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
     val db = FirebaseFirestore.getInstance()
     val toestellen = remember { mutableStateListOf<Toestel>() }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredToestellen = remember(searchQuery, toestellen) {
+        if (searchQuery.isEmpty()) {
+            toestellen
+        } else {
+            toestellen.filter { toestel ->
+                toestel.name.contains(searchQuery, ignoreCase = true) ||
+                toestel.description.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         db.collection("toestellen")
@@ -80,9 +96,25 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
             fontSize = 24.sp,
             modifier = Modifier.padding(bottom = 16.dp)
         )
+        
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            placeholder = { Text("Zoek toestellen...") },
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF4CAF50),
+                unfocusedBorderColor = Color.Gray,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White
+            )
+        )
 
         LazyColumn {
-            items(toestellen) { toestel ->
+            items(filteredToestellen) { toestel ->
                 ToestelCard(
                     toestel = toestel,
                     showActions = false
@@ -91,5 +123,16 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
         }
 
         Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = onLogoutClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+                .height(50.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+        ) {
+            Text("Log uit", color = Color.White)
+        }
     }
 }
