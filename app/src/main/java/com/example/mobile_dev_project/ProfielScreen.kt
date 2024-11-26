@@ -1,13 +1,20 @@
-import androidx.compose.foundation.Image
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -15,7 +22,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.toObject
@@ -24,8 +31,12 @@ data class User(
     val username: String = "",
     val email: String = "",
     val profilePictureUrl: String? = null,
-    val address: String? = null,
-    val description: String? = null
+    val description: String? = null,
+    val street: String = "",
+    val houseNumber: String = "",
+    val postalCode: String = "",
+    val city: String = "",
+    val country: String = "België"
 )
 
 @Composable
@@ -33,11 +44,16 @@ fun ProfielScreen(modifier: Modifier = Modifier) {
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
     var profilePictureUrl by remember { mutableStateOf("") }
     var isEditing by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     var isSaving by remember { mutableStateOf(false) }
+    var profileImageUri by remember { mutableStateOf<Uri?>(null) }
+    var street by remember { mutableStateOf("") }
+    var houseNumber by remember { mutableStateOf("") }
+    var postalCode by remember { mutableStateOf("") }
+    var city by remember { mutableStateOf("") }
+    var country by remember { mutableStateOf("België") }
 
     val db = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
@@ -52,8 +68,12 @@ fun ProfielScreen(modifier: Modifier = Modifier) {
                         username = it.username
                         email = it.email
                         profilePictureUrl = it.profilePictureUrl ?: ""
-                        address = it.address ?: ""
                         description = it.description ?: ""
+                        street = it.street
+                        houseNumber = it.houseNumber
+                        postalCode = it.postalCode
+                        city = it.city
+                        country = it.country
                     }
                     isLoading = false
                 }
@@ -94,19 +114,56 @@ fun ProfielScreen(modifier: Modifier = Modifier) {
                 }
             }
 
-            Card(
+            val launcher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.GetContent()
+            ) { uri: Uri? ->
+                profileImageUri = uri
+            }
+
+            Box(
                 modifier = Modifier
-                    .size(200.dp)
-                    .padding(16.dp),
-                shape = CircleShape,
-                elevation = 8.dp
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .clickable {
+                        launcher.launch("image/*")
+                    }
             ) {
-                Image(
-                    painter = rememberAsyncImagePainter(profilePictureUrl),
-                    contentDescription = "Profile Picture",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+                if (profileImageUri != null) {
+                    AsyncImage(
+                        model = profileImageUri,
+                        contentDescription = "Profielfoto",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.LightGray, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Profielfoto toevoegen",
+                            tint = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+                }
+                
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(36.dp)
+                        .background(MaterialTheme.colors.primary, CircleShape)
+                        .padding(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Bewerk profielfoto",
+                        tint = Color.White
+                    )
+                }
             }
 
             if (isEditing) {
@@ -124,7 +181,19 @@ fun ProfielScreen(modifier: Modifier = Modifier) {
             }
 
             TextSection("Beschrijving", description, isEditing) { description = it }
-            TextSection("Adres", address, isEditing) { address = it }
+            AdresSection(
+                street = street,
+                houseNumber = houseNumber,
+                postalCode = postalCode,
+                city = city,
+                country = country,
+                isEditing = isEditing,
+                onStreetChange = { street = it },
+                onHouseNumberChange = { houseNumber = it },
+                onPostalCodeChange = { postalCode = it },
+                onCityChange = { city = it },
+                onCountryChange = { country = it }
+            )
 
             if (!isEditing) {
                 ApparatuurVerhuurSection()
@@ -134,7 +203,19 @@ fun ProfielScreen(modifier: Modifier = Modifier) {
                 Button(
                     onClick = {
                         isSaving = true
-                        saveUserData(db, userId, username, email, profilePictureUrl, address, description) {
+                        saveUserData(
+                            db = db,
+                            userId = userId,
+                            username = username,
+                            email = email,
+                            profilePictureUrl = profilePictureUrl,
+                            description = description,
+                            street = street,
+                            houseNumber = houseNumber,
+                            postalCode = postalCode,
+                            city = city,
+                            country = country
+                        ) {
                             isSaving = false
                             isEditing = false
                         }
@@ -246,22 +327,128 @@ fun ApparatuurVerhuurSection() {
     }
 }
 
+@Composable
+fun AdresSection(
+    street: String,
+    houseNumber: String,
+    postalCode: String,
+    city: String,
+    country: String,
+    isEditing: Boolean,
+    onStreetChange: (String) -> Unit,
+    onHouseNumberChange: (String) -> Unit,
+    onPostalCodeChange: (String) -> Unit,
+    onCityChange: (String) -> Unit,
+    onCountryChange: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+    ) {
+        Text(
+            text = "Adres",
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        if (isEditing) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = street,
+                    onValueChange = onStreetChange,
+                    label = { Text("Straat") },
+                    modifier = Modifier.weight(2f),
+                    singleLine = true
+                )
+                
+                OutlinedTextField(
+                    value = houseNumber,
+                    onValueChange = onHouseNumberChange,
+                    label = { Text("Nr") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = postalCode,
+                    onValueChange = onPostalCodeChange,
+                    label = { Text("Postcode") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = city,
+                    onValueChange = onCityChange,
+                    label = { Text("Gemeente") },
+                    modifier = Modifier.weight(2f),
+                    singleLine = true
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = country,
+                onValueChange = onCountryChange,
+                label = { Text("Land") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = 2.dp,
+                backgroundColor = Color(0xFFF0F0F0)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text("$street $houseNumber")
+                    Text("$postalCode $city")
+                    Text(country)
+                }
+            }
+        }
+    }
+}
+
 private fun saveUserData(
     db: FirebaseFirestore,
     userId: String,
     username: String,
     email: String,
     profilePictureUrl: String,
-    address: String,
     description: String,
+    street: String,
+    houseNumber: String,
+    postalCode: String,
+    city: String,
+    country: String,
     onComplete: () -> Unit
 ) {
     val user = hashMapOf(
         "username" to username,
         "email" to email,
         "profilePictureUrl" to profilePictureUrl,
-        "address" to address,
-        "description" to description
+        "description" to description,
+        "street" to street,
+        "houseNumber" to houseNumber,
+        "postalCode" to postalCode,
+        "city" to city,
+        "country" to country
     )
 
     db.collection("users").document(userId).set(user)
