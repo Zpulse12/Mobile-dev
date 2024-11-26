@@ -7,7 +7,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 
 @Composable
-fun MainScreen(onLogoutClick: () -> Unit) {
+fun MainScreen(
+    onLogoutClick: () -> Unit, 
+    onNavigateToAddToestel: () -> Unit,
+    onNavigateToEditToestel: (String) -> Unit
+) {
     var selectedTab by remember { mutableStateOf("home") }
 
     Scaffold(
@@ -18,7 +22,11 @@ fun MainScreen(onLogoutClick: () -> Unit) {
         when (selectedTab) {
             "home" -> HomeScreen(onLogoutClick = onLogoutClick, modifier = Modifier.padding(paddingValues))
             "map" -> MapScreen(modifier = Modifier.padding(paddingValues))
-            "devices" -> ToestellenScreen(modifier = Modifier.padding(paddingValues))
+            "devices" -> ToestellenScreen(
+                modifier = Modifier.padding(paddingValues),
+                onNavigateToAddToestel = onNavigateToAddToestel,
+                onNavigateToEditToestel = onNavigateToEditToestel
+            )
             "profile" -> ProfielScreen(modifier = Modifier.padding(paddingValues))
         }
     }
