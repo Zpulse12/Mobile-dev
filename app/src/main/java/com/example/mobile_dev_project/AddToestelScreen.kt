@@ -33,7 +33,6 @@ fun AddToestelScreen(onToestelAdded: () -> Unit) {
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
-    var priceUnit by remember { mutableStateOf("Dag") }
     var availabilityStart by remember { mutableStateOf(LocalDate.now()) }
     var availabilityEnd by remember { mutableStateOf(LocalDate.now().plusDays(7)) }
     var photoUrl by remember { mutableStateOf("") }
@@ -113,30 +112,17 @@ fun AddToestelScreen(onToestelAdded: () -> Unit) {
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                Row(
+                OutlinedTextField(
+                    value = price,
+                    onValueChange = { price = it },
+                    label = { Text("Prijs per dag") },
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = price,
-                        onValueChange = { price = it },
-                        label = { Text("Prijs") },
-                        modifier = Modifier.weight(1f),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF4CAF50),
-                            unfocusedBorderColor = Color.Gray,
-                            focusedLabelColor = Color(0xFF4CAF50)
-                        )
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF4CAF50),
+                        unfocusedBorderColor = Color.Gray,
+                        focusedLabelColor = Color(0xFF4CAF50)
                     )
-
-                    ExposedDropdownMenuBox(
-                        expanded = expanded,
-                        onExpandedChange = { expanded = !expanded },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        // ... bestaande dropdown code ...
-                    }
-                }
+                )
             }
         }
 
@@ -278,7 +264,6 @@ fun AddToestelScreen(onToestelAdded: () -> Unit) {
                         name = name,
                         description = description,
                         price = price.toDoubleOrNull() ?: 0.0,
-                        priceUnit = priceUnit,
                         category = selectedCategory,
                         availabilityStart = availabilityStart,
                         availabilityEnd = availabilityEnd,

@@ -38,7 +38,32 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
     var userAddress by remember { mutableStateOf("") }
     var toestelAddresses by remember { mutableStateOf(mapOf<String, String>()) }
 
-    val filteredToestellen = remember(searchQuery, selectedCategory, toestellen) {
+    LaunchedEffect(Unit) {
+        val userId = auth.currentUser?.uid
+        if (userId != null) {
+            db.collection("users")
+                .document(userId)
+                .get()
+                .addOnSuccessListener { document ->
+                    userAddress = document.getString("address") ?: ""
+                }
+        }
+
+        db.collection("users")
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val addresses = mutableMapOf<String, String>()
+                for (document in snapshot.documents) {
+                    val address = document.getString("address")
+                    if (address != null) {
+                        addresses[document.id] = address
+                    }
+                }
+                toestelAddresses = addresses
+            }
+    }
+
+    val filteredToestellen = remember(searchQuery, selectedCategory, toestellen, selectedRadius, userAddress, toestelAddresses) {
         toestellen.filter { toestel ->
             val matchesSearch = if (searchQuery.isEmpty()) {
                 true
@@ -52,8 +77,32 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
             } else {
                 toestel.category == selectedCategory
             }
+
+            val matchesRadius = try {
+                val geocoder = Geocoder(context, Locale.getDefault())
+                val userLocation = geocoder.getFromLocationName(userAddress, 1)?.firstOrNull()
+                val toestelAddress = toestelAddresses[toestel.userId]
+                val toestelLocation = toestelAddress?.let { 
+                    geocoder.getFromLocationName(it, 1)?.firstOrNull() 
+                }
+
+                if (userLocation != null && toestelLocation != null) {
+                    val distance = calculateDistance(
+                        userLocation.latitude,
+                        userLocation.longitude,
+                        toestelLocation.latitude,
+                        toestelLocation.longitude
+                    )
+                    distance <= selectedRadius
+                } else {
+                    true
+                }
+            } catch (e: Exception) {
+                Log.e("HomeScreen", "Error calculating distance: ${e.message}")
+                true
+            }
             
-            matchesSearch && matchesCategory
+            matchesSearch && matchesCategory && matchesRadius
         }
     }
 
@@ -62,7 +111,7 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
             .get()
             .addOnSuccessListener { snapshot ->
                 toestellen.clear()
-                for (document in snapshot.documents) {
+                snapshot.documents.forEach { document ->
                     try {
                         val data = document.data
                         if (data != null) {
@@ -89,11 +138,14 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
                                 id = document.id,
                                 name = data["name"] as? String ?: "",
                                 description = data["description"] as? String ?: "",
-                                price = (data["price"] as? Number)?.toDouble() ?: 0.0,
-                                priceUnit = data["priceUnit"] as? String ?: "Dag",
+                                price = when (val price = data["price"]) {
+                                    is String -> price.toDoubleOrNull() ?: 0.0
+                                    is Number -> price.toDouble()
+                                    else -> 0.0
+                                },
                                 category = data["category"] as? String ?: "",
-                                availabilityStart = LocalDate.parse(data["availabilityStart"] as? String ?: LocalDate.now().toString()),
-                                availabilityEnd = LocalDate.parse(data["availabilityEnd"] as? String ?: LocalDate.now().plusDays(1).toString()),
+                                availabilityStart = startDate,
+                                availabilityEnd = endDate,
                                 photoUrl = data["photoUrl"] as? String ?: "",
                                 userId = data["userId"] as? String ?: ""
                             )
@@ -109,31 +161,6 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
             }
     }
 
-    LaunchedEffect(Unit) {
-        val userId = auth.currentUser?.uid
-        if (userId != null) {
-            db.collection("users")
-                .document(userId)
-                .get()
-                .addOnSuccessListener { document ->
-                    userAddress = document.getString("address") ?: ""
-                }
-        }
-
-        db.collection("users")
-            .get()
-            .addOnSuccessListener { snapshot ->
-                val addresses = mutableMapOf<String, String>()
-                for (document in snapshot.documents) {
-                    val address = document.getString("address")
-                    if (address != null) {
-                        addresses[document.id] = address
-                    }
-                }
-                toestelAddresses = addresses
-            }
-    }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -144,7 +171,7 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
             fontSize = 24.sp,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-        
+
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
@@ -218,19 +245,6 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
                     showActions = false
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Button(
-            onClick = onLogoutClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-                .height(50.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-        ) {
-            Text("Log uit", color = Color.White)
         }
     }
 

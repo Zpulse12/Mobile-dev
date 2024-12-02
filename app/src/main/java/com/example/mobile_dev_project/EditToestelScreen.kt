@@ -5,19 +5,29 @@ import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import androidx.compose.foundation.clickable
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditToestelScreen(
     toestelId: String,
@@ -31,10 +41,11 @@ fun EditToestelScreen(
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
-    var priceUnit by remember { mutableStateOf("Dag") }
     var availabilityStart by remember { mutableStateOf(LocalDate.now()) }
     var availabilityEnd by remember { mutableStateOf(LocalDate.now().plusDays(7)) }
     var photoUrl by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
     
     LaunchedEffect(toestelId) {
         db.collection("toestellen").document(toestelId).get()
@@ -44,9 +55,13 @@ fun EditToestelScreen(
                     if (data != null) {
                         name = data["name"] as? String ?: ""
                         description = data["description"] as? String ?: ""
-                        price = (data["price"] as? Number)?.toString() ?: ""
-                        priceUnit = data["priceUnit"] as? String ?: "Dag"
+                        price = when (val priceValue = data["price"]) {
+                            is String -> priceValue
+                            is Number -> priceValue.toString()
+                            else -> ""
+                        }
                         photoUrl = data["photoUrl"] as? String ?: ""
+                        selectedCategory = data["category"] as? String ?: ""
 
                         // Parse dates
                         val startDateMap = data["availabilityStart"] as? Map<*, *>
@@ -100,87 +115,66 @@ fun EditToestelScreen(
     ) {
         Text(
             text = "Toestel Bewerken",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineMedium,
             color = Color(0xFF4CAF50),
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 24.dp)
         )
 
-Spacer(modifier = Modifier.height(16.dp))
-
-        TextField(
+        OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("Toestel Naam", color = Color.White) },
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.Gray,
-                focusedContainerColor = Color.Black,
-                unfocusedContainerColor = Color.Black,
-                disabledContainerColor = Color.Black,
-                cursorColor = Color(0xFF4CAF50),
-                focusedIndicatorColor = Color(0xFF4CAF50),
-                unfocusedIndicatorColor = Color.Gray,
-                focusedLabelColor = Color(0xFF4CAF50),
-                unfocusedLabelColor = Color.White,
-            ),
-            modifier = Modifier.fillMaxWidth()
+            label = { Text("Naam") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF4CAF50),
+                unfocusedBorderColor = Color.Gray,
+                focusedLabelColor = Color(0xFF4CAF50)
+            )
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        TextField(
+        OutlinedTextField(
             value = description,
             onValueChange = { description = it },
-            label = { Text("Beschrijving", color = Color.White) },
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.Gray,
-                focusedContainerColor = Color.Black,
-                unfocusedContainerColor = Color.Black,
-                disabledContainerColor = Color.Black,
-                cursorColor = Color(0xFF4CAF50),
-                focusedIndicatorColor = Color(0xFF4CAF50),
-                unfocusedIndicatorColor = Color.Gray,
-                focusedLabelColor = Color(0xFF4CAF50),
-                unfocusedLabelColor = Color.White,
-            ),
-            modifier = Modifier.fillMaxWidth()
+            label = { Text("Beschrijving") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 3,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF4CAF50),
+                unfocusedBorderColor = Color.Gray,
+                focusedLabelColor = Color(0xFF4CAF50)
+            )
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        TextField(
-            value = price,
-            onValueChange = { price = it },
-            label = { Text("Prijs (€)", color = Color.White) },
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.Gray,
-                focusedContainerColor = Color.Black,
-                unfocusedContainerColor = Color.Black,
-                disabledContainerColor = Color.Black,
-                cursorColor = Color(0xFF4CAF50),
-                focusedIndicatorColor = Color(0xFF4CAF50),
-                unfocusedIndicatorColor = Color.Gray,
-                focusedLabelColor = Color(0xFF4CAF50),
-                unfocusedLabelColor = Color.White,
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth()
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
         ) {
-            RadioButton(selected = priceUnit == "Uur", onClick = { priceUnit = "Uur" })
-            Text("Uur", color = Color(0xFF4CAF50))
-            RadioButton(selected = priceUnit == "Dag", onClick = { priceUnit = "Dag" })
-            Text("Dag", color = Color(0xFF4CAF50))
-            RadioButton(selected = priceUnit == "Week", onClick = { priceUnit = "Week" })
-            Text("Week", color = Color(0xFF4CAF50))
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Prijs Informatie",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color(0xFF4CAF50),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                OutlinedTextField(
+                    value = price,
+                    onValueChange = { price = it },
+                    label = { Text("Prijs per dag") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF4CAF50),
+                        unfocusedBorderColor = Color.Gray,
+                        focusedLabelColor = Color(0xFF4CAF50)
+                    )
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -250,32 +244,61 @@ Spacer(modifier = Modifier.height(16.dp))
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        TextField(
-            value = photoUrl,
-            onValueChange = { photoUrl = it },
-            label = { Text("Foto URL", color = Color.White) },
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.Gray,
-                focusedContainerColor = Color.Black,
-                unfocusedContainerColor = Color.Black,
-                disabledContainerColor = Color.Black,
-                cursorColor = Color(0xFF4CAF50),
-                focusedIndicatorColor = Color(0xFF4CAF50),
-                unfocusedIndicatorColor = Color.Gray,
-                focusedLabelColor = Color(0xFF4CAF50),
-                unfocusedLabelColor = Color.White,
-            ),
-            modifier = Modifier.fillMaxWidth()
+        Text(
+            text = "Categorie",
+            style = MaterialTheme.typography.titleMedium,
+            color = Color(0xFF4CAF50),
+            modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(Categories.list) { category ->
+                FilterChip(
+                    selected = selectedCategory == category,
+                    onClick = { selectedCategory = category },
+                    label = { Text(category) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFF4CAF50),
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
+        }
+
+        OutlinedTextField(
+            value = photoUrl,
+            onValueChange = { photoUrl = it },
+            label = { Text("Foto URL") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF4CAF50),
+                unfocusedBorderColor = Color.Gray,
+                focusedLabelColor = Color(0xFF4CAF50)
+            )
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
 
         Button(
             onClick = {
-                if (name.isNotEmpty() && description.isNotEmpty() && price.isNotEmpty()) {
+                if (name.isNotEmpty() && description.isNotEmpty() && 
+                    price.isNotEmpty() && selectedCategory.isNotEmpty()) {
+                    if (price.toDoubleOrNull() == null) {
+                        Toast.makeText(
+                            context,
+                            "Prijs moet een geldig nummer zijn",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return@Button
+                    }
+
                     if (availabilityEnd.isBefore(availabilityStart)) {
                         Toast.makeText(
                             context,
@@ -286,22 +309,22 @@ Spacer(modifier = Modifier.height(16.dp))
                     }
 
                     val startDateMap = mapOf(
-                        "year" to availabilityStart.year.toLong(),
-                        "monthValue" to availabilityStart.monthValue.toLong(),
-                        "dayOfMonth" to availabilityStart.dayOfMonth.toLong()
+                        "year" to availabilityStart.year,
+                        "monthValue" to availabilityStart.monthValue,
+                        "dayOfMonth" to availabilityStart.dayOfMonth
                     )
 
                     val endDateMap = mapOf(
-                        "year" to availabilityEnd.year.toLong(),
-                        "monthValue" to availabilityEnd.monthValue.toLong(),
-                        "dayOfMonth" to availabilityEnd.dayOfMonth.toLong()
+                        "year" to availabilityEnd.year,
+                        "monthValue" to availabilityEnd.monthValue,
+                        "dayOfMonth" to availabilityEnd.dayOfMonth
                     )
 
-                    val updatedToestel = hashMapOf<String, Any>(
+                    val updatedToestel = hashMapOf(
                         "name" to name,
                         "description" to description,
-                        "price" to (price.toDoubleOrNull() ?: 0.0),
-                        "priceUnit" to priceUnit,
+                        "price" to price,
+                        "category" to selectedCategory,
                         "availabilityStart" to startDateMap,
                         "availabilityEnd" to endDateMap,
                         "photoUrl" to photoUrl,
@@ -319,10 +342,17 @@ Spacer(modifier = Modifier.height(16.dp))
                     ).show()
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+            shape = RoundedCornerShape(8.dp)
         ) {
-            Text("Opslaan", color = Color.White)
+            Text(
+                "Opslaan",
+                fontSize = 16.sp,
+                color = Color.White
+            )
         }
     }
 }

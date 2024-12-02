@@ -30,7 +30,6 @@ fun ToestellenScreen(
 
     val toestellen = remember { mutableStateListOf<Toestel>() }
 
-    // Load toestellen from Firestore
     LaunchedEffect(userId) {
         if (userId.isNotEmpty()) {
             db.collection("toestellen")
@@ -42,11 +41,8 @@ fun ToestellenScreen(
                         try {
                             val data = document.data
                             if (data != null) {
-                                // Get the date maps from Firestore
                                 val startDateMap = data["availabilityStart"] as? Map<*, *>
                                 val endDateMap = data["availabilityEnd"] as? Map<*, *>
-
-                                // Parse the dates
                                 val startDate = if (startDateMap != null) {
                                     LocalDate.of(
                                         (startDateMap["year"] as Long).toInt(),
@@ -67,8 +63,11 @@ fun ToestellenScreen(
                                     id = document.id,
                                     name = data["name"] as? String ?: "",
                                     description = data["description"] as? String ?: "",
-                                    price = (data["price"] as? Number)?.toDouble() ?: 0.0,
-                                    priceUnit = data["priceUnit"] as? String ?: "Dag",
+                                    price = when (val price = data["price"]) {
+                                        is String -> price.toDoubleOrNull() ?: 0.0
+                                        is Number -> price.toDouble()
+                                        else -> 0.0
+                                    },
                                     category = data["category"] as? String ?: "",
                                     availabilityStart = startDate,
                                     availabilityEnd = endDate,
@@ -90,7 +89,7 @@ fun ToestellenScreen(
 
     fun deleteToestel(toestel: Toestel) {
         db.collection("toestellen")
-            .whereEqualTo("name", toestel.name) // Assuming 'name' is unique; adjust if necessary
+            .whereEqualTo("name", toestel.name)
             .whereEqualTo("userId", userId)
             .get()
             .addOnSuccessListener { snapshot ->
@@ -137,6 +136,8 @@ fun ToestelCard(
     onDelete: (Toestel) -> Unit = {},
     onEdit: (Toestel) -> Unit = {}
 ) {
+    val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -166,7 +167,7 @@ fun ToestelCard(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "${toestel.price} € per ${toestel.priceUnit}",
+                        text = "${toestel.price} € per dag",
                         color = Color(0xFF4CAF50),
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -214,7 +215,6 @@ fun ToestelCard(
                 modifier = Modifier.padding(top = 4.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
-            val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
             Text(
                 text = "Beschikbaar van ${toestel.availabilityStart.format(dateFormatter)} tot ${toestel.availabilityEnd.format(dateFormatter)}",
                 color = Color.White,
@@ -230,7 +230,6 @@ data class Toestel(
     val name: String = "",
     val description: String = "",
     val price: Double = 0.0,
-    val priceUnit: String = "Dag",
     val category: String = "",
     val availabilityStart: LocalDate = LocalDate.now(),
     val availabilityEnd: LocalDate = LocalDate.now(),
@@ -248,14 +247,5 @@ object Categories {
         "Sport & Spel",
         "Feest & Events",
         "Overige"
-    )
-}
-
-object PriceUnits {
-    val list = listOf(
-        "Uur",
-        "Dag",
-        "Week",
-        "Maand"
     )
 }
