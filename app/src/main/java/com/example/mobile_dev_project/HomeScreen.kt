@@ -36,8 +36,9 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
     var showRadiusDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     var userAddress by remember { mutableStateOf("") }
+    var toestelAddresses by remember { mutableStateOf(mapOf<String, String>()) }
 
-    val filteredToestellen = remember(searchQuery, selectedCategory, selectedRadius, toestellen) {
+    val filteredToestellen = remember(searchQuery, selectedCategory, toestellen) {
         toestellen.filter { toestel ->
             val matchesSearch = if (searchQuery.isEmpty()) {
                 true
@@ -51,30 +52,8 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
             } else {
                 toestel.category == selectedCategory
             }
-
-            val geocoder = Geocoder(context, Locale.getDefault())
-            val toestelLocation = geocoder.getFromLocationName(toestel.userId?.let { 
-                FirebaseFirestore.getInstance()
-                    .collection("users")
-                    .document(it)
-                    .get()
-                    .result
-                    ?.get("address") as? String
-            } ?: "", 1)
-
-            val matchesRadius = if (userAddress.isNotEmpty() && toestelLocation?.isNotEmpty() == true) {
-                val distance = calculateDistance(
-                    userAddress.split(",")[0].toDouble(),
-                    userAddress.split(",")[1].toDouble(),
-                    toestelLocation[0].latitude,
-                    toestelLocation[0].longitude
-                )
-                distance <= selectedRadius
-            } else {
-                true
-            }
             
-            matchesSearch && matchesCategory && matchesRadius
+            matchesSearch && matchesCategory
         }
     }
 
@@ -140,6 +119,19 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
                     userAddress = document.getString("address") ?: ""
                 }
         }
+
+        db.collection("users")
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val addresses = mutableMapOf<String, String>()
+                for (document in snapshot.documents) {
+                    val address = document.getString("address")
+                    if (address != null) {
+                        addresses[document.id] = address
+                    }
+                }
+                toestelAddresses = addresses
+            }
     }
 
     Column(
