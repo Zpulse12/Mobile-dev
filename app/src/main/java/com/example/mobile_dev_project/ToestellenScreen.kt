@@ -68,7 +68,8 @@ fun ToestellenScreen(
                                     name = data["name"] as? String ?: "",
                                     description = data["description"] as? String ?: "",
                                     price = (data["price"] as? Number)?.toDouble() ?: 0.0,
-                                    priceUnit = data["priceUnit"] as? String ?: "",
+                                    priceUnit = data["priceUnit"] as? String ?: "Dag",
+                                    category = data["category"] as? String ?: "",
                                     availabilityStart = startDate,
                                     availabilityEnd = endDate,
                                     photoUrl = data["photoUrl"] as? String ?: "",
@@ -169,6 +170,11 @@ fun ToestelCard(
                         color = Color(0xFF4CAF50),
                         style = MaterialTheme.typography.bodyMedium
                     )
+                    Text(
+                        text = "Categorie: ${toestel.category}",
+                        color = Color(0xFF4CAF50),
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
                 if (showActions) {
                     Row {
@@ -224,9 +230,32 @@ data class Toestel(
     val name: String = "",
     val description: String = "",
     val price: Double = 0.0,
-    val priceUnit: String = "",
+    val priceUnit: String = "Dag",
+    val category: String = "",
     val availabilityStart: LocalDate = LocalDate.now(),
     val availabilityEnd: LocalDate = LocalDate.now(),
     val photoUrl: String = "",
     val userId: String = ""
 )
+
+object Categories {
+    val list = listOf(
+        "Keukenapparatuur",
+        "Tuingereedschap",
+        "Schoonmaakapparatuur",
+        "Gereedschap",
+        "Electronica",
+        "Sport & Spel",
+        "Feest & Events",
+        "Overige"
+    )
+}
+
+object PriceUnits {
+    val list = listOf(
+        "Uur",
+        "Dag",
+        "Week",
+        "Maand"
+    )
+}

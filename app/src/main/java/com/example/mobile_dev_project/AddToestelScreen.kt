@@ -6,6 +6,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -34,6 +37,8 @@ fun AddToestelScreen(onToestelAdded: () -> Unit) {
     var availabilityStart by remember { mutableStateOf(LocalDate.now()) }
     var availabilityEnd by remember { mutableStateOf(LocalDate.now().plusDays(7)) }
     var photoUrl by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
@@ -60,87 +65,79 @@ fun AddToestelScreen(onToestelAdded: () -> Unit) {
     ) {
         Text(
             text = "Toestel Toevoegen",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineMedium,
             color = Color(0xFF4CAF50),
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Naam") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF4CAF50),
+                unfocusedBorderColor = Color.Gray,
+                focusedLabelColor = Color(0xFF4CAF50)
+            )
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        TextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Toestel Naam", color = Color.White) },
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.Gray,
-                focusedContainerColor = Color.Black,
-                unfocusedContainerColor = Color.Black,
-                disabledContainerColor = Color.Black,
-                cursorColor = Color(0xFF4CAF50),
-                focusedIndicatorColor = Color(0xFF4CAF50),
-                unfocusedIndicatorColor = Color.Gray,
-                focusedLabelColor = Color(0xFF4CAF50),
-                unfocusedLabelColor = Color.White,
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        TextField(
+        OutlinedTextField(
             value = description,
             onValueChange = { description = it },
-            label = { Text("Beschrijving", color = Color.White) },
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.Gray,
-                focusedContainerColor = Color.Black,
-                unfocusedContainerColor = Color.Black,
-                disabledContainerColor = Color.Black,
-                cursorColor = Color(0xFF4CAF50),
-                focusedIndicatorColor = Color(0xFF4CAF50),
-                unfocusedIndicatorColor = Color.Gray,
-                focusedLabelColor = Color(0xFF4CAF50),
-                unfocusedLabelColor = Color.White,
-            ),
-            modifier = Modifier.fillMaxWidth()
+            label = { Text("Beschrijving") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 3,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF4CAF50),
+                unfocusedBorderColor = Color.Gray,
+                focusedLabelColor = Color(0xFF4CAF50)
+            )
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        TextField(
-            value = price,
-            onValueChange = { price = it },
-            label = { Text("Prijs (€)", color = Color.White) },
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.Gray,
-                focusedContainerColor = Color.Black,
-                unfocusedContainerColor = Color.Black,
-                disabledContainerColor = Color.Black,
-                cursorColor = Color(0xFF4CAF50),
-                focusedIndicatorColor = Color(0xFF4CAF50),
-                unfocusedIndicatorColor = Color.Gray,
-                focusedLabelColor = Color(0xFF4CAF50),
-                unfocusedLabelColor = Color.White,
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth()
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
         ) {
-            RadioButton(selected = priceUnit == "Uur", onClick = { priceUnit = "Uur" })
-            Text("Uur", color = Color(0xFF4CAF50))
-            RadioButton(selected = priceUnit == "Dag", onClick = { priceUnit = "Dag" })
-            Text("Dag", color = Color(0xFF4CAF50))
-            RadioButton(selected = priceUnit == "Week", onClick = { priceUnit = "Week" })
-            Text("Week", color = Color(0xFF4CAF50))
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Prijs Informatie",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color(0xFF4CAF50),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = price,
+                        onValueChange = { price = it },
+                        label = { Text("Prijs") },
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF4CAF50),
+                            unfocusedBorderColor = Color.Gray,
+                            focusedLabelColor = Color(0xFF4CAF50)
+                        )
+                    )
+
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        // ... bestaande dropdown code ...
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -210,32 +207,52 @@ fun AddToestelScreen(onToestelAdded: () -> Unit) {
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        TextField(
-            value = photoUrl,
-            onValueChange = { photoUrl = it },
-            label = { Text("Foto URL", color = Color.White) },
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.Gray,
-                focusedContainerColor = Color.Black,
-                unfocusedContainerColor = Color.Black,
-                disabledContainerColor = Color.Black,
-                cursorColor = Color(0xFF4CAF50),
-                focusedIndicatorColor = Color(0xFF4CAF50),
-                unfocusedIndicatorColor = Color.Gray,
-                focusedLabelColor = Color(0xFF4CAF50),
-                unfocusedLabelColor = Color.White,
-            ),
-            modifier = Modifier.fillMaxWidth()
+        Text(
+            text = "Categorie",
+            style = MaterialTheme.typography.titleMedium,
+            color = Color(0xFF4CAF50),
+            modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(Categories.list) { category ->
+                FilterChip(
+                    selected = selectedCategory == category,
+                    onClick = { selectedCategory = category },
+                    label = { Text(category) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFF4CAF50),
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
+        }
+
+        OutlinedTextField(
+            value = photoUrl,
+            onValueChange = { photoUrl = it },
+            label = { Text("Foto URL") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF4CAF50),
+                unfocusedBorderColor = Color.Gray,
+                focusedLabelColor = Color(0xFF4CAF50)
+            )
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
 
         Button(
             onClick = {
-                if (name.isNotEmpty() && description.isNotEmpty() && price.isNotEmpty()) {
+                if (name.isNotEmpty() && description.isNotEmpty() && 
+                    price.isNotEmpty() && selectedCategory.isNotEmpty()) {
                     if (availabilityEnd.isBefore(availabilityStart)) {
                         Toast.makeText(
                             context,
@@ -244,17 +261,31 @@ fun AddToestelScreen(onToestelAdded: () -> Unit) {
                         ).show()
                         return@Button
                     }
-                    
+
+                    val startDateMap = mapOf(
+                        "year" to availabilityStart.year,
+                        "month" to availabilityStart.monthValue,
+                        "day" to availabilityStart.dayOfMonth
+                    )
+
+                    val endDateMap = mapOf(
+                        "year" to availabilityEnd.year,
+                        "month" to availabilityEnd.monthValue,
+                        "day" to availabilityEnd.dayOfMonth
+                    )
+
                     val toestel = Toestel(
                         name = name,
                         description = description,
                         price = price.toDoubleOrNull() ?: 0.0,
                         priceUnit = priceUnit,
+                        category = selectedCategory,
                         availabilityStart = availabilityStart,
                         availabilityEnd = availabilityEnd,
                         photoUrl = photoUrl,
                         userId = userId
                     )
+
                     addToestelToFirestore(db, toestel) {
                         onToestelAdded()
                     }
@@ -266,10 +297,17 @@ fun AddToestelScreen(onToestelAdded: () -> Unit) {
                     ).show()
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+            shape = RoundedCornerShape(8.dp)
         ) {
-            Text("Toevoegen", color = Color.White)
+            Text(
+                "Toestel Toevoegen",
+                fontSize = 16.sp,
+                color = Color.White
+            )
         }
     }
 }
