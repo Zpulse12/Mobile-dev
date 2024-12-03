@@ -133,7 +133,7 @@ fun ToestellenScreen(
                     toestel = toestel,
                     isHomeScreen = false,
                     onDelete = { deleteToestel(it) },
-                    onEdit = { onNavigateToEditToestel(it.id) }
+                    onEdit = { toestel -> onNavigateToEditToestel(toestel.id) }
                 )
             }
         }
@@ -209,6 +209,114 @@ fun ToestelCard(
                     Text("Huur dit toestel", color = Color.White)
                 }
             } else {
+                var rentals by remember { mutableStateOf<List<RentalInfo>>(emptyList()) }
+                var isLoadingRentals by remember { mutableStateOf(true) }
+                val db = FirebaseFirestore.getInstance()
+
+                LaunchedEffect(toestel.id) {
+                    db.collection("rentals")
+                        .whereEqualTo("toestelId", toestel.id)
+                        .get()
+                        .addOnSuccessListener { snapshot ->
+                            val rentalsList = mutableListOf<RentalInfo>()
+                            var completedQueries = 0
+                            val totalQueries = snapshot.size()
+
+                            if (totalQueries == 0) {
+                                rentals = emptyList()
+                                isLoadingRentals = false
+                                return@addOnSuccessListener
+                            }
+
+                            snapshot.documents.forEach { rentalDoc ->
+                                val renterId = rentalDoc.getString("renterId") ?: ""
+                                val startDateMap = rentalDoc.get("startDate") as? Map<*, *>
+                                val endDateMap = rentalDoc.get("endDate") as? Map<*, *>
+
+                                val startDate = if (startDateMap != null) {
+                                    LocalDate.of(
+                                        (startDateMap["year"] as Long).toInt(),
+                                        (startDateMap["month"] as Long).toInt(),
+                                        (startDateMap["day"] as Long).toInt()
+                                    )
+                                } else LocalDate.now()
+
+                                val endDate = if (endDateMap != null) {
+                                    LocalDate.of(
+                                        (endDateMap["year"] as Long).toInt(),
+                                        (endDateMap["month"] as Long).toInt(),
+                                        (endDateMap["day"] as Long).toInt()
+                                    )
+                                } else LocalDate.now()
+
+                                // Fetch renter details
+                                db.collection("users")
+                                    .document(renterId)
+                                    .get()
+                                    .addOnSuccessListener { userDoc ->
+                                        val username = userDoc.getString("username") ?: "Onbekende gebruiker"
+                                        rentalsList.add(
+                                            RentalInfo(
+                                                id = rentalDoc.id,
+                                                renterName = username,
+                                                startDate = startDate,
+                                                endDate = endDate
+                                            )
+                                        )
+                                        
+                                        completedQueries++
+                                        if (completedQueries == totalQueries) {
+                                            rentals = rentalsList
+                                            isLoadingRentals = false
+                                        }
+                                    }
+                                    .addOnFailureListener {
+                                        completedQueries++
+                                        if (completedQueries == totalQueries) {
+                                            rentals = rentalsList
+                                            isLoadingRentals = false
+                                        }
+                                    }
+                            }
+                        }
+                        .addOnFailureListener {
+                            isLoadingRentals = false
+                        }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "Verhuringen:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF4CAF50)
+                )
+                
+                if (isLoadingRentals) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .align(Alignment.CenterHorizontally),
+                        color = Color(0xFF4CAF50)
+                    )
+                } else if (rentals.isEmpty()) {
+                    Text(
+                        text = "Nog geen verhuringen",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                } else {
+                    var refreshTrigger by remember { mutableStateOf(0) }
+                    rentals.forEach { rental ->
+                        RentalInfoCard(
+                            rental = rental,
+                            onRefresh = { refreshTrigger += 1 }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
@@ -479,4 +587,77 @@ object Categories {
         "Feest & Events",
         "Overige"
     )
+}
+
+data class RentalInfo(
+    val id: String,
+    val renterName: String,
+    val startDate: LocalDate,
+    val endDate: LocalDate
+)
+
+@Composable
+fun RentalInfoCard(
+    rental: RentalInfo,
+    onRefresh: () -> Unit
+) {
+    val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    val db = FirebaseFirestore.getInstance()
+    val context = LocalContext.current
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF333333)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = rental.renterName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White
+                )
+                Text(
+                    text = "${rental.startDate.format(dateFormatter)} - ${rental.endDate.format(dateFormatter)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF4CAF50)
+                )
+            }
+            
+            IconButton(
+                onClick = { 
+                    Log.d("RentalDelete", "Attempting to delete rental with ID: ${rental.id}")
+                    db.collection("rentals")
+                        .document(rental.id)
+                        .delete()
+                        .addOnSuccessListener {
+                            Log.d("RentalDelete", "Successfully deleted rental")
+                            Toast.makeText(context, "Verhuring geannuleerd", Toast.LENGTH_SHORT).show()
+                            onRefresh()
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("RentalDelete", "Error deleting rental: ${e.message}")
+                            Toast.makeText(context, "Fout bij annuleren: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Annuleer verhuring",
+                    tint = Color.Red
+                )
+            }
+        }
+    }
 }
