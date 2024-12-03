@@ -1,9 +1,11 @@
 package com.example.mobile_dev_project
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -12,11 +14,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun ToestellenScreen(
@@ -43,19 +56,20 @@ fun ToestellenScreen(
                             if (data != null) {
                                 val startDateMap = data["availabilityStart"] as? Map<*, *>
                                 val endDateMap = data["availabilityEnd"] as? Map<*, *>
+
                                 val startDate = if (startDateMap != null) {
                                     LocalDate.of(
                                         (startDateMap["year"] as Long).toInt(),
-                                        (startDateMap["monthValue"] as Long).toInt(),
-                                        (startDateMap["dayOfMonth"] as Long).toInt()
+                                        (startDateMap["month"] as Long).toInt(),
+                                        (startDateMap["day"] as Long).toInt()
                                     )
                                 } else LocalDate.now()
 
                                 val endDate = if (endDateMap != null) {
                                     LocalDate.of(
                                         (endDateMap["year"] as Long).toInt(),
-                                        (endDateMap["monthValue"] as Long).toInt(),
-                                        (endDateMap["dayOfMonth"] as Long).toInt()
+                                        (endDateMap["month"] as Long).toInt(),
+                                        (endDateMap["day"] as Long).toInt()
                                     )
                                 } else LocalDate.now()
 
@@ -63,11 +77,7 @@ fun ToestellenScreen(
                                     id = document.id,
                                     name = data["name"] as? String ?: "",
                                     description = data["description"] as? String ?: "",
-                                    price = when (val price = data["price"]) {
-                                        is String -> price.toDoubleOrNull() ?: 0.0
-                                        is Number -> price.toDouble()
-                                        else -> 0.0
-                                    },
+                                    price = (data["price"] as? Number)?.toDouble() ?: 0.0,
                                     category = data["category"] as? String ?: "",
                                     availabilityStart = startDate,
                                     availabilityEnd = endDate,
@@ -121,6 +131,7 @@ fun ToestellenScreen(
             items(toestellen) { toestel ->
                 ToestelCard(
                     toestel = toestel,
+                    isHomeScreen = false,
                     onDelete = { deleteToestel(it) },
                     onEdit = { onNavigateToEditToestel(it.id) }
                 )
@@ -132,98 +143,318 @@ fun ToestellenScreen(
 @Composable
 fun ToestelCard(
     toestel: Toestel,
-    showActions: Boolean = true,
+    isHomeScreen: Boolean = false,
     onDelete: (Toestel) -> Unit = {},
-    onEdit: (Toestel) -> Unit = {}
+    onEdit: (Toestel) -> Unit = {},
+    onRent: (Toestel) -> Unit = {}
 ) {
-    val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-    
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Black),
-        elevation = CardDefaults.cardElevation(4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(12.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                androidx.compose.foundation.Image(
-                    painter = coil.compose.rememberAsyncImagePainter(toestel.photoUrl),
-                    contentDescription = "Toestel Foto",
-                    modifier = Modifier.size(100.dp)
+            if (toestel.photoUrl.isNotEmpty()) {
+                AsyncImage(
+                    model = toestel.photoUrl,
+                    contentDescription = "Toestel foto",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    contentScale = ContentScale.FillWidth
                 )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(
-                    modifier = Modifier.weight(1f)
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            Text(
+                text = toestel.name,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White
+            )
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = toestel.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White
+            )
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = "€${String.format("%.2f", toestel.price)}",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color(0xFF4CAF50)
+            )
+
+            val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+            Text(
+                text = "Beschikbaar van ${toestel.availabilityStart.format(dateFormatter)} tot ${toestel.availabilityEnd.format(dateFormatter)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White
+            )
+
+            if (isHomeScreen) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Button(
+                    onClick = { onRent(toestel) },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = toestel.name,
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "${toestel.price} € per dag",
-                        color = Color(0xFF4CAF50),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "Categorie: ${toestel.category}",
-                        color = Color(0xFF4CAF50),
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Text("Huur dit toestel", color = Color.White)
                 }
-                if (showActions) {
-                    Row {
-                        IconButton(
-                            onClick = { onEdit(toestel) },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit Toestel",
-                                tint = Color(0xFF4CAF50)
-                            )
-                        }
-                        IconButton(
-                            onClick = { onDelete(toestel) },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete Toestel",
-                                tint = Color.Red
-                            )
-                        }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(
+                        onClick = { onEdit(toestel) },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Bewerk",
+                            tint = Color(0xFF4CAF50)
+                        )
+                    }
+                    IconButton(
+                        onClick = { onDelete(toestel) },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Verwijder",
+                            tint = Color.Red
+                        )
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Beschrijving:",
-                color = Color(0xFF4CAF50),
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = toestel.description,
-                color = Color.White,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Beschikbaar van ${toestel.availabilityStart.format(dateFormatter)} tot ${toestel.availabilityEnd.format(dateFormatter)}",
-                color = Color.White,
-                style = MaterialTheme.typography.bodySmall
-            )
         }
     }
 }
 
+@Composable
+fun RentDialog(
+    toestel: Toestel,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalDate, LocalDate) -> Unit
+) {
+    var startDate by remember { mutableStateOf<LocalDate?>(null) }
+    var endDate by remember { mutableStateOf<LocalDate?>(null) }
+    var rentedDates by remember { mutableStateOf<List<Pair<LocalDate, LocalDate>>>(emptyList()) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val db = FirebaseFirestore.getInstance()
+
+    // Fetch existing rentals
+    LaunchedEffect(toestel.id) {
+        db.collection("rentals")
+            .whereEqualTo("toestelId", toestel.id)
+            .get()
+            .addOnSuccessListener { documents ->
+                rentedDates = documents.mapNotNull { doc ->
+                    try {
+                        val startDateMap = doc.get("startDate") as? Map<*, *>
+                        val endDateMap = doc.get("endDate") as? Map<*, *>
+                        
+                        if (startDateMap != null && endDateMap != null) {
+                            val start = LocalDate.of(
+                                (startDateMap["year"] as Long).toInt(),
+                                (startDateMap["month"] as Long).toInt(),
+                                (startDateMap["day"] as Long).toInt()
+                            )
+                            val end = LocalDate.of(
+                                (endDateMap["year"] as Long).toInt(),
+                                (endDateMap["month"] as Long).toInt(),
+                                (endDateMap["day"] as Long).toInt()
+                            )
+                            Pair(start, end)
+                        } else null
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color.Black,
+        title = { 
+            Text(
+                "Huur ${toestel.name}",
+                color = Color.White
+            ) 
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                // Selected Range Display
+                if (startDate != null || endDate != null) {
+                    Text(
+                        text = "Geselecteerde periode:",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color(0xFF4CAF50),
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    Text(
+                        text = when {
+                            startDate != null && endDate != null -> "${startDate!!.format(DateTimeFormatter.ofPattern("d MMM"))} - ${endDate!!.format(DateTimeFormatter.ofPattern("d MMM"))}"
+                            startDate != null -> "${startDate!!.format(DateTimeFormatter.ofPattern("d MMM"))} - ..."
+                            else -> "... - ${endDate!!.format(DateTimeFormatter.ofPattern("d MMM"))}"
+                        },
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = Color(0xFF4CAF50)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Calendar Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    listOf("Z", "M", "D", "W", "D", "V", "Z").forEach { day ->
+                        Text(
+                            text = day,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                // Calendar Grid
+                val currentMonth = if (startDate != null) startDate!!.month else LocalDate.now().month
+                val daysInMonth = currentMonth.length(false)
+                val firstDayOfMonth = LocalDate.of(LocalDate.now().year, currentMonth, 1)
+                val firstDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7
+
+                // Function to check if a date is available
+                fun isDateAvailable(date: LocalDate): Boolean {
+                    // Check if date is within toestel's availability period
+                    if (date.isBefore(toestel.availabilityStart) || date.isAfter(toestel.availabilityEnd)) {
+                        return false
+                    }
+                    
+                    // Check if date is not already rented
+                    return !rentedDates.any { (start, end) -> 
+                        date in start..end 
+                    }
+                }
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(7),
+                    modifier = Modifier.height(300.dp)
+                ) {
+                    // Empty spaces for first week
+                    items(firstDayOfWeek) {
+                        Box(modifier = Modifier.aspectRatio(1f))
+                    }
+
+                    // Days of the month
+                    items(daysInMonth) { day ->
+                        val date = LocalDate.of(LocalDate.now().year, currentMonth, day + 1)
+                        val isAvailable = isDateAvailable(date)
+                        val isSelected = when {
+                            startDate == null && endDate == null -> false
+                            endDate == null -> date == startDate
+                            else -> date in (startDate!!..endDate!!)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .padding(2.dp)
+                                .background(
+                                    when {
+                                        isSelected -> Color(0xFF4CAF50)
+                                        !isAvailable -> Color.DarkGray
+                                        else -> Color.Transparent
+                                    },
+                                    shape = CircleShape
+                                )
+                                .clickable(enabled = isAvailable) {
+                                    when {
+                                        startDate == null -> startDate = date
+                                        endDate == null && date > startDate -> {
+                                            // Check if all dates in the range are available
+                                            val allDatesInRange = startDate!!.datesUntil(date.plusDays(1)).toList()
+                                            if (allDatesInRange.all { isDateAvailable(it) }) {
+                                                endDate = date
+                                            } else {
+                                                // Show error or handle invalid range
+                                                errorMessage = "Niet alle dagen in deze periode zijn beschikbaar"
+                                            }
+                                        }
+                                        else -> {
+                                            startDate = date
+                                            endDate = null
+                                        }
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = (day + 1).toString(),
+                                color = when {
+                                    isSelected -> Color.Black
+                                    !isAvailable -> Color.Gray
+                                    else -> Color.White
+                                }
+                            )
+                        }
+                    }
+                }
+
+                errorMessage?.let {
+                    Text(
+                        text = it,
+                        color = Color.Red,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (startDate != null && endDate != null) {
+                        onConfirm(startDate!!, endDate!!)
+                    } else {
+                        errorMessage = "Selecteer een start- en einddatum"
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4CAF50),
+                    contentColor = Color.Black
+                )
+            ) {
+                Text("Bevestig")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = Color(0xFF4CAF50)
+                )
+            ) {
+                Text("Annuleer")
+            }
+        }
+    )
+}
 
 data class Toestel(
     val id: String = "",

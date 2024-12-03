@@ -175,10 +175,6 @@ fun ProfielScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
                     onCountryChange = { country = it }
                 )
 
-                if (!isEditing) {
-                    ApparatuurVerhuurSection()
-                }
-
                 if (isEditing) {
                     Button(
                         onClick = {
@@ -264,61 +260,6 @@ fun TextSection(label: String, text: String, isEditing: Boolean, onValueChange: 
                     .background(Color(0xFFF0F0F0), RoundedCornerShape(8.dp))
                     .padding(12.dp)
             )
-        }
-    }
-}
-
-@Composable
-fun ApparatuurVerhuurSection() {
-    val verhuurItems = listOf(
-        "Canon EOS R5 Camera",
-        "DJI Phantom 4 Drone",
-        "MacBook Pro 16\"",
-        "Sony WH-1000XM4 Headphones",
-        "GoPro Hero 9 Black",
-        "Canon EF 50mm f/1.8 Lens"
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 24.dp)
-    ) {
-        Text(
-            text = "Beschikbare Apparatuur",
-            style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold),
-            modifier = Modifier
-                .align(Alignment.Start)
-                .padding(bottom = 12.dp)
-        )
-
-        verhuurItems.forEach { item ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                elevation = 4.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        painter = painterResource(id = android.R.drawable.ic_menu_camera),
-                        contentDescription = "Apparaat icoon",
-                        modifier = Modifier.size(32.dp),
-                        tint = Color(0xFF4CAF50)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(
-                        text = item,
-                        style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                    )
-                }
-            }
         }
     }
 }

@@ -26,7 +26,10 @@ import kotlin.math.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
+fun HomeScreen(
+    onLogoutClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val db = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
     val toestellen = remember { mutableStateListOf<Toestel>() }
@@ -37,6 +40,8 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var userAddress by remember { mutableStateOf("") }
     var toestelAddresses by remember { mutableStateOf(mapOf<String, String>()) }
+    var selectedToestel by remember { mutableStateOf<Toestel?>(null) }
+    val userId = auth.currentUser?.uid ?: ""
 
     LaunchedEffect(Unit) {
         val userId = auth.currentUser?.uid
@@ -106,7 +111,7 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(true) {
         db.collection("toestellen")
             .get()
             .addOnSuccessListener { snapshot ->
@@ -121,16 +126,16 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
                             val startDate = if (startDateMap != null) {
                                 LocalDate.of(
                                     (startDateMap["year"] as Long).toInt(),
-                                    (startDateMap["monthValue"] as Long).toInt(),
-                                    (startDateMap["dayOfMonth"] as Long).toInt()
+                                    (startDateMap["month"] as Long).toInt(),
+                                    (startDateMap["day"] as Long).toInt()
                                 )
                             } else LocalDate.now()
 
                             val endDate = if (endDateMap != null) {
                                 LocalDate.of(
                                     (endDateMap["year"] as Long).toInt(),
-                                    (endDateMap["monthValue"] as Long).toInt(),
-                                    (endDateMap["dayOfMonth"] as Long).toInt()
+                                    (endDateMap["month"] as Long).toInt(),
+                                    (endDateMap["day"] as Long).toInt()
                                 )
                             } else LocalDate.now()
 
@@ -138,11 +143,7 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
                                 id = document.id,
                                 name = data["name"] as? String ?: "",
                                 description = data["description"] as? String ?: "",
-                                price = when (val price = data["price"]) {
-                                    is String -> price.toDoubleOrNull() ?: 0.0
-                                    is Number -> price.toDouble()
-                                    else -> 0.0
-                                },
+                                price = (data["price"] as? Number)?.toDouble() ?: 0.0,
                                 category = data["category"] as? String ?: "",
                                 availabilityStart = startDate,
                                 availabilityEnd = endDate,
@@ -152,7 +153,7 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
                             toestellen.add(toestel)
                         }
                     } catch (e: Exception) {
-                        Log.e("HomeScreen", "Error parsing toestel: ${e.message}")
+                        Log.e("HomeScreen", "Error parsing toestel: ${e.message}", e)
                     }
                 }
             }
@@ -242,7 +243,8 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
             items(filteredToestellen) { toestel ->
                 ToestelCard(
                     toestel = toestel,
-                    showActions = false
+                    isHomeScreen = true,
+                    onRent = { selectedToestel = it }
                 )
             }
         }
@@ -270,6 +272,28 @@ fun HomeScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
             confirmButton = {
                 TextButton(onClick = { showRadiusDialog = false }) {
                     Text("OK", color = Color(0xFF4CAF50))
+                }
+            }
+        )
+    }
+
+    selectedToestel?.let { toestel ->
+        RentDialog(
+            toestel = toestel,
+            onDismiss = { selectedToestel = null },
+            onConfirm = { startDate, endDate ->
+                Log.d("HomeScreen", "Attempting to rent toestel: ${toestel.id}")
+                Log.d("HomeScreen", "Start date: $startDate, End date: $endDate")
+                
+                rentToestel(
+                    db = db,
+                    toestelId = toestel.id,
+                    renterId = userId,
+                    startDate = startDate,
+                    endDate = endDate
+                ) {
+                    Log.d("HomeScreen", "Rental completed")
+                    selectedToestel = null
                 }
             }
         )
