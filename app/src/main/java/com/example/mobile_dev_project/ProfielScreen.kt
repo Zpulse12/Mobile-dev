@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
@@ -24,9 +23,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.mobile_dev_project.Toestel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.toObject
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import androidx.compose.material3.*
+
 
 data class User(
     val username: String = "",
@@ -198,7 +202,7 @@ fun ProfielScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
                         },
                         enabled = !isSaving,
                         modifier = Modifier.padding(16.dp),
-                        colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF4CAF50))
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                     ) {
                         if (isSaving) {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
@@ -216,12 +220,16 @@ fun ProfielScreen(onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
                         .fillMaxWidth()
                         .padding(8.dp)
                         .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF4CAF50))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                 ) {
                     Text("Log uit", color = Color.White)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                this@LazyColumn.item {
+                    RentedToestellen(userId = userId)
+                }
             }
         }
     }
@@ -346,8 +354,8 @@ fun AdresSection(
         } else {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                elevation = 2.dp,
-                backgroundColor = Color(0xFFF0F0F0)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F0F0))
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),
@@ -392,3 +400,186 @@ private fun saveUserData(
         .addOnSuccessListener { onComplete() }
         .addOnFailureListener { onComplete() }
 }
+
+@Composable
+fun RentedToestellen(userId: String) {
+    var rentedToestellen by remember { mutableStateOf<List<RentedToestel>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    val db = FirebaseFirestore.getInstance()
+
+    LaunchedEffect(userId) {
+        db.collection("rentals")
+            .whereEqualTo("renterId", userId)
+            .get()
+            .addOnSuccessListener { rentalSnapshot ->
+                val rentedToestelsList = mutableListOf<RentedToestel>()
+                
+                // Counter for completed async operations
+                var completedQueries = 0
+                val totalQueries = rentalSnapshot.size()
+
+                fun checkCompletion() {
+                    if (completedQueries == totalQueries) {
+                        rentedToestellen = rentedToestelsList
+                        isLoading = false
+                    }
+                }
+
+                if (totalQueries == 0) {
+                    isLoading = false
+                }
+
+                rentalSnapshot.documents.forEach { rentalDoc ->
+                    val toestelId = rentalDoc.getString("toestelId") ?: ""
+                    val startDateMap = rentalDoc.get("startDate") as? Map<*, *>
+                    val endDateMap = rentalDoc.get("endDate") as? Map<*, *>
+
+                    val startDate = if (startDateMap != null) {
+                        LocalDate.of(
+                            (startDateMap["year"] as Long).toInt(),
+                            (startDateMap["month"] as Long).toInt(),
+                            (startDateMap["day"] as Long).toInt()
+                        )
+                    } else LocalDate.now()
+
+                    val endDate = if (endDateMap != null) {
+                        LocalDate.of(
+                            (endDateMap["year"] as Long).toInt(),
+                            (endDateMap["month"] as Long).toInt(),
+                            (endDateMap["day"] as Long).toInt()
+                        )
+                    } else LocalDate.now()
+
+                    // Fetch toestel details
+                    db.collection("toestellen")
+                        .document(toestelId)
+                        .get()
+                        .addOnSuccessListener { toestelDoc ->
+                            val toestel = toestelDoc.data?.let {
+                                Toestel(
+                                    id = toestelDoc.id,
+                                    name = it["name"] as? String ?: "",
+                                    description = it["description"] as? String ?: "",
+                                    price = (it["price"] as? Number)?.toDouble() ?: 0.0,
+                                    photoUrl = it["photoUrl"] as? String ?: "",
+                                    userId = it["userId"] as? String ?: ""
+                                )
+                            }
+
+                            toestel?.let {
+                                rentedToestelsList.add(
+                                    RentedToestel(
+                                        rental = Rental(
+                                            id = rentalDoc.id,
+                                            startDate = startDate,
+                                            endDate = endDate
+                                        ),
+                                        toestel = it
+                                    )
+                                )
+                            }
+                            
+                            completedQueries++
+                            checkCompletion()
+                        }
+                        .addOnFailureListener {
+                            completedQueries++
+                            checkCompletion()
+                        }
+                }
+            }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+    ) {
+        Text(
+            text = "Mijn Gehuurde Toestellen",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                color = Color(0xFF4CAF50)
+            )
+        } else if (rentedToestellen.isEmpty()) {
+            Text(
+                text = "Je hebt momenteel geen toestellen gehuurd",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
+        } else {
+            rentedToestellen.forEach { rentedToestel ->
+                RentedToestelCard(rentedToestel)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun RentedToestelCard(rentedToestel: RentedToestel) {
+    val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(4.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Black),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            if (rentedToestel.toestel.photoUrl.isNotEmpty()) {
+                AsyncImage(
+                    model = rentedToestel.toestel.photoUrl,
+                    contentDescription = "Toestel foto",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    contentScale = ContentScale.FillWidth
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            Text(
+                text = rentedToestel.toestel.name,
+                style = MaterialTheme.typography.headlineMedium,
+                color = Color.White
+            )
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = "Gehuurd van ${rentedToestel.rental.startDate.format(dateFormatter)} " +
+                      "tot ${rentedToestel.rental.endDate.format(dateFormatter)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF4CAF50)
+            )
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = "€${String.format("%.2f", rentedToestel.toestel.price)} per dag",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White
+            )
+        }
+    }
+}
+
+data class Rental(
+    val id: String,
+    val startDate: LocalDate,
+    val endDate: LocalDate
+)
+
+data class RentedToestel(
+    val rental: Rental,
+    val toestel: Toestel
+)
