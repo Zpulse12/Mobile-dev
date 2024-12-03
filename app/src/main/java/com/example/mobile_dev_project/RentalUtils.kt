@@ -45,3 +45,16 @@ fun rentToestel(
             onComplete()
         }
 }
+
+fun cancelRental(
+    db: FirebaseFirestore,
+    rentalId: String,
+    onComplete: () -> Unit
+) {
+    db.collection("rentals")
+        .document(rentalId)
+        .delete()
+        .addOnSuccessListener { 
+            onComplete()
+        }
+}

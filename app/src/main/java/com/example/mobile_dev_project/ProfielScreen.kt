@@ -30,6 +30,10 @@ import com.google.firebase.firestore.ktx.toObject
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import androidx.compose.material3.*
+import com.example.mobile_dev_project.cancelRental
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import android.util.Log
 
 
 data class User(
@@ -406,27 +410,21 @@ fun RentedToestellen(userId: String) {
     var rentedToestellen by remember { mutableStateOf<List<RentedToestel>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     val db = FirebaseFirestore.getInstance()
+    var refreshTrigger by remember { mutableStateOf(0) }
 
-    LaunchedEffect(userId) {
+    LaunchedEffect(userId, refreshTrigger) {
         db.collection("rentals")
             .whereEqualTo("renterId", userId)
             .get()
             .addOnSuccessListener { rentalSnapshot ->
                 val rentedToestelsList = mutableListOf<RentedToestel>()
-                
-                // Counter for completed async operations
                 var completedQueries = 0
                 val totalQueries = rentalSnapshot.size()
 
-                fun checkCompletion() {
-                    if (completedQueries == totalQueries) {
-                        rentedToestellen = rentedToestelsList
-                        isLoading = false
-                    }
-                }
-
                 if (totalQueries == 0) {
+                    rentedToestellen = emptyList()
                     isLoading = false
+                    return@addOnSuccessListener
                 }
 
                 rentalSnapshot.documents.forEach { rentalDoc ->
@@ -450,7 +448,6 @@ fun RentedToestellen(userId: String) {
                         )
                     } else LocalDate.now()
 
-                    // Fetch toestel details
                     db.collection("toestellen")
                         .document(toestelId)
                         .get()
@@ -480,50 +477,34 @@ fun RentedToestellen(userId: String) {
                             }
                             
                             completedQueries++
-                            checkCompletion()
-                        }
-                        .addOnFailureListener {
-                            completedQueries++
-                            checkCompletion()
+                            if (completedQueries == totalQueries) {
+                                rentedToestellen = rentedToestelsList
+                                isLoading = false
+                            }
                         }
                 }
             }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp)
-    ) {
-        Text(
-            text = "Mijn Gehuurde Toestellen",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-                color = Color(0xFF4CAF50)
+    Column {
+        rentedToestellen.forEach { rentedToestel ->
+            RentedToestelCard(
+                rentedToestel = rentedToestel,
+                onRefresh = { refreshTrigger += 1 }
             )
-        } else if (rentedToestellen.isEmpty()) {
-            Text(
-                text = "Je hebt momenteel geen toestellen gehuurd",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
-        } else {
-            rentedToestellen.forEach { rentedToestel ->
-                RentedToestelCard(rentedToestel)
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
-fun RentedToestelCard(rentedToestel: RentedToestel) {
+fun RentedToestelCard(
+    rentedToestel: RentedToestel,
+    onRefresh: () -> Unit
+) {
     val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    val db = FirebaseFirestore.getInstance()
+    val context = LocalContext.current
     
     Card(
         modifier = Modifier
@@ -553,8 +534,6 @@ fun RentedToestelCard(rentedToestel: RentedToestel) {
                 color = Color.White
             )
             
-            Spacer(modifier = Modifier.height(4.dp))
-            
             Text(
                 text = "Gehuurd van ${rentedToestel.rental.startDate.format(dateFormatter)} " +
                       "tot ${rentedToestel.rental.endDate.format(dateFormatter)}",
@@ -562,13 +541,29 @@ fun RentedToestelCard(rentedToestel: RentedToestel) {
                 color = Color(0xFF4CAF50)
             )
             
-            Spacer(modifier = Modifier.height(4.dp))
-            
             Text(
                 text = "€${String.format("%.2f", rentedToestel.toestel.price)} per dag",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = { 
+                    db.collection("rentals")
+                        .document(rentedToestel.rental.id)
+                        .delete()
+                        .addOnSuccessListener {
+                            Toast.makeText(context, "Huur geannuleerd", Toast.LENGTH_SHORT).show()
+                            onRefresh()
+                        }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Annuleer Huur", color = Color.White)
+            }
         }
     }
 }
@@ -583,3 +578,4 @@ data class RentedToestel(
     val rental: Rental,
     val toestel: Toestel
 )
+
