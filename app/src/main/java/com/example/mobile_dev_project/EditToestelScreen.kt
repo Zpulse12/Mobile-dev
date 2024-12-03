@@ -58,29 +58,39 @@ fun EditToestelScreen(
                         price = when (val priceValue = data["price"]) {
                             is String -> priceValue
                             is Number -> priceValue.toString()
-                            else -> ""
+                            else -> "0"
                         }
                         photoUrl = data["photoUrl"] as? String ?: ""
                         selectedCategory = data["category"] as? String ?: ""
 
-                        // Parse dates
+                        // Parse dates with correct field names
                         val startDateMap = data["availabilityStart"] as? Map<*, *>
                         val endDateMap = data["availabilityEnd"] as? Map<*, *>
 
                         if (startDateMap != null) {
-                            availabilityStart = LocalDate.of(
-                                (startDateMap["year"] as Long).toInt(),
-                                (startDateMap["monthValue"] as Long).toInt(),
-                                (startDateMap["dayOfMonth"] as Long).toInt()
-                            )
+                            try {
+                                availabilityStart = LocalDate.of(
+                                    (startDateMap["year"] as Long).toInt(),
+                                    (startDateMap["month"] as Long).toInt(),
+                                    (startDateMap["day"] as Long).toInt()
+                                )
+                            } catch (e: Exception) {
+                                Log.e("EditToestelScreen", "Error parsing start date: ${e.message}")
+                                availabilityStart = LocalDate.now()
+                            }
                         }
 
                         if (endDateMap != null) {
-                            availabilityEnd = LocalDate.of(
-                                (endDateMap["year"] as Long).toInt(),
-                                (endDateMap["monthValue"] as Long).toInt(),
-                                (endDateMap["dayOfMonth"] as Long).toInt()
-                            )
+                            try {
+                                availabilityEnd = LocalDate.of(
+                                    (endDateMap["year"] as Long).toInt(),
+                                    (endDateMap["month"] as Long).toInt(),
+                                    (endDateMap["day"] as Long).toInt()
+                                )
+                            } catch (e: Exception) {
+                                Log.e("EditToestelScreen", "Error parsing end date: ${e.message}")
+                                availabilityEnd = LocalDate.now().plusDays(7)
+                            }
                         }
                     }
                 }
@@ -290,7 +300,10 @@ fun EditToestelScreen(
             onClick = {
                 if (name.isNotEmpty() && description.isNotEmpty() && 
                     price.isNotEmpty() && selectedCategory.isNotEmpty()) {
-                    if (price.toDoubleOrNull() == null) {
+                    
+                    // Validate price
+                    val priceValue = price.toDoubleOrNull()
+                    if (priceValue == null) {
                         Toast.makeText(
                             context,
                             "Prijs moet een geldig nummer zijn",
@@ -310,20 +323,20 @@ fun EditToestelScreen(
 
                     val startDateMap = mapOf(
                         "year" to availabilityStart.year,
-                        "monthValue" to availabilityStart.monthValue,
-                        "dayOfMonth" to availabilityStart.dayOfMonth
+                        "month" to availabilityStart.monthValue,
+                        "day" to availabilityStart.dayOfMonth
                     )
 
                     val endDateMap = mapOf(
                         "year" to availabilityEnd.year,
-                        "monthValue" to availabilityEnd.monthValue,
-                        "dayOfMonth" to availabilityEnd.dayOfMonth
+                        "month" to availabilityEnd.monthValue,
+                        "day" to availabilityEnd.dayOfMonth
                     )
 
                     val updatedToestel = hashMapOf(
                         "name" to name,
                         "description" to description,
-                        "price" to price,
+                        "price" to priceValue,
                         "category" to selectedCategory,
                         "availabilityStart" to startDateMap,
                         "availabilityEnd" to endDateMap,

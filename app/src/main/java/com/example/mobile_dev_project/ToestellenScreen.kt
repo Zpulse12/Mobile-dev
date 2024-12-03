@@ -133,7 +133,7 @@ fun ToestellenScreen(
                     toestel = toestel,
                     isHomeScreen = false,
                     onDelete = { deleteToestel(it) },
-                    onEdit = { onNavigateToEditToestel(it.id) }
+                    onEdit = { toestel -> onNavigateToEditToestel(toestel.id) }
                 )
             }
         }
@@ -257,6 +257,7 @@ fun ToestelCard(
                                         val username = userDoc.getString("username") ?: "Onbekende gebruiker"
                                         rentalsList.add(
                                             RentalInfo(
+                                                id = rentalDoc.id,
                                                 renterName = username,
                                                 startDate = startDate,
                                                 endDate = endDate
@@ -305,8 +306,12 @@ fun ToestelCard(
                         color = Color.Gray
                     )
                 } else {
+                    var refreshTrigger by remember { mutableStateOf(0) }
                     rentals.forEach { rental ->
-                        RentalInfoCard(rental)
+                        RentalInfoCard(
+                            rental = rental,
+                            onRefresh = { refreshTrigger += 1 }
+                        )
                     }
                 }
 
@@ -585,14 +590,20 @@ object Categories {
 }
 
 data class RentalInfo(
+    val id: String,
     val renterName: String,
     val startDate: LocalDate,
     val endDate: LocalDate
 )
 
 @Composable
-fun RentalInfoCard(rental: RentalInfo) {
+fun RentalInfoCard(
+    rental: RentalInfo,
+    onRefresh: () -> Unit
+) {
     val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    val db = FirebaseFirestore.getInstance()
+    val context = LocalContext.current
     
     Card(
         modifier = Modifier
@@ -608,7 +619,9 @@ fun RentalInfoCard(rental: RentalInfo) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(
                     text = rental.renterName,
                     style = MaterialTheme.typography.bodySmall,
@@ -618,6 +631,31 @@ fun RentalInfoCard(rental: RentalInfo) {
                     text = "${rental.startDate.format(dateFormatter)} - ${rental.endDate.format(dateFormatter)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFF4CAF50)
+                )
+            }
+            
+            IconButton(
+                onClick = { 
+                    Log.d("RentalDelete", "Attempting to delete rental with ID: ${rental.id}")
+                    db.collection("rentals")
+                        .document(rental.id)
+                        .delete()
+                        .addOnSuccessListener {
+                            Log.d("RentalDelete", "Successfully deleted rental")
+                            Toast.makeText(context, "Verhuring geannuleerd", Toast.LENGTH_SHORT).show()
+                            onRefresh()
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("RentalDelete", "Error deleting rental: ${e.message}")
+                            Toast.makeText(context, "Fout bij annuleren: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Annuleer verhuring",
+                    tint = Color.Red
                 )
             }
         }
