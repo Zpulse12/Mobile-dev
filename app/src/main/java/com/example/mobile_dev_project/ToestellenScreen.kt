@@ -209,6 +209,109 @@ fun ToestelCard(
                     Text("Huur dit toestel", color = Color.White)
                 }
             } else {
+                var rentals by remember { mutableStateOf<List<RentalInfo>>(emptyList()) }
+                var isLoadingRentals by remember { mutableStateOf(true) }
+                val db = FirebaseFirestore.getInstance()
+
+                LaunchedEffect(toestel.id) {
+                    db.collection("rentals")
+                        .whereEqualTo("toestelId", toestel.id)
+                        .get()
+                        .addOnSuccessListener { snapshot ->
+                            val rentalsList = mutableListOf<RentalInfo>()
+                            var completedQueries = 0
+                            val totalQueries = snapshot.size()
+
+                            if (totalQueries == 0) {
+                                rentals = emptyList()
+                                isLoadingRentals = false
+                                return@addOnSuccessListener
+                            }
+
+                            snapshot.documents.forEach { rentalDoc ->
+                                val renterId = rentalDoc.getString("renterId") ?: ""
+                                val startDateMap = rentalDoc.get("startDate") as? Map<*, *>
+                                val endDateMap = rentalDoc.get("endDate") as? Map<*, *>
+
+                                val startDate = if (startDateMap != null) {
+                                    LocalDate.of(
+                                        (startDateMap["year"] as Long).toInt(),
+                                        (startDateMap["month"] as Long).toInt(),
+                                        (startDateMap["day"] as Long).toInt()
+                                    )
+                                } else LocalDate.now()
+
+                                val endDate = if (endDateMap != null) {
+                                    LocalDate.of(
+                                        (endDateMap["year"] as Long).toInt(),
+                                        (endDateMap["month"] as Long).toInt(),
+                                        (endDateMap["day"] as Long).toInt()
+                                    )
+                                } else LocalDate.now()
+
+                                // Fetch renter details
+                                db.collection("users")
+                                    .document(renterId)
+                                    .get()
+                                    .addOnSuccessListener { userDoc ->
+                                        val username = userDoc.getString("username") ?: "Onbekende gebruiker"
+                                        rentalsList.add(
+                                            RentalInfo(
+                                                renterName = username,
+                                                startDate = startDate,
+                                                endDate = endDate
+                                            )
+                                        )
+                                        
+                                        completedQueries++
+                                        if (completedQueries == totalQueries) {
+                                            rentals = rentalsList
+                                            isLoadingRentals = false
+                                        }
+                                    }
+                                    .addOnFailureListener {
+                                        completedQueries++
+                                        if (completedQueries == totalQueries) {
+                                            rentals = rentalsList
+                                            isLoadingRentals = false
+                                        }
+                                    }
+                            }
+                        }
+                        .addOnFailureListener {
+                            isLoadingRentals = false
+                        }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "Verhuringen:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF4CAF50)
+                )
+                
+                if (isLoadingRentals) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .align(Alignment.CenterHorizontally),
+                        color = Color(0xFF4CAF50)
+                    )
+                } else if (rentals.isEmpty()) {
+                    Text(
+                        text = "Nog geen verhuringen",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                } else {
+                    rentals.forEach { rental ->
+                        RentalInfoCard(rental)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
@@ -479,4 +582,44 @@ object Categories {
         "Feest & Events",
         "Overige"
     )
+}
+
+data class RentalInfo(
+    val renterName: String,
+    val startDate: LocalDate,
+    val endDate: LocalDate
+)
+
+@Composable
+fun RentalInfoCard(rental: RentalInfo) {
+    val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF333333)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = rental.renterName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White
+                )
+                Text(
+                    text = "${rental.startDate.format(dateFormatter)} - ${rental.endDate.format(dateFormatter)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF4CAF50)
+                )
+            }
+        }
+    }
 }
