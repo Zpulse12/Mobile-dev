@@ -50,7 +50,11 @@ fun HomeScreen(
                 .document(userId)
                 .get()
                 .addOnSuccessListener { document ->
-                    userAddress = document.getString("address") ?: ""
+                    val street = document.getString("street") ?: ""
+                    val houseNumber = document.getString("houseNumber") ?: ""
+                    val city = document.getString("city") ?: ""
+                    val postalCode = document.getString("postalCode") ?: ""
+                    userAddress = "$street $houseNumber, $postalCode $city"
                 }
         }
 
@@ -59,9 +63,13 @@ fun HomeScreen(
             .addOnSuccessListener { snapshot ->
                 val addresses = mutableMapOf<String, String>()
                 for (document in snapshot.documents) {
-                    val address = document.getString("address")
-                    if (address != null) {
-                        addresses[document.id] = address
+                    val street = document.getString("street") ?: ""
+                    val houseNumber = document.getString("houseNumber") ?: ""
+                    val city = document.getString("city") ?: ""
+                    val postalCode = document.getString("postalCode") ?: ""
+                    val fullAddress = "$street $houseNumber, $postalCode $city"
+                    if (fullAddress.isNotBlank()) {
+                        addresses[document.id] = fullAddress
                     }
                 }
                 toestelAddresses = addresses
