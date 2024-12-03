@@ -248,6 +248,7 @@ fun AddToestelScreen(onToestelAdded: () -> Unit) {
                         return@Button
                     }
 
+                    // Store availability dates as maps
                     val startDateMap = mapOf(
                         "year" to availabilityStart.year,
                         "month" to availabilityStart.monthValue,
@@ -271,7 +272,7 @@ fun AddToestelScreen(onToestelAdded: () -> Unit) {
                         userId = userId
                     )
 
-                    addToestelToFirestore(db, toestel) {
+                    addToestelToFirestore(db, toestel, startDateMap, endDateMap) {
                         onToestelAdded()
                     }
                 } else {
@@ -298,8 +299,25 @@ fun AddToestelScreen(onToestelAdded: () -> Unit) {
 }
 
 // Firestore saving logic
-private fun addToestelToFirestore(db: FirebaseFirestore, toestel: Toestel, onComplete: () -> Unit) {
-    db.collection("toestellen").add(toestel)
+private fun addToestelToFirestore(
+    db: FirebaseFirestore,
+    toestel: Toestel,
+    startDateMap: Map<String, Int>,
+    endDateMap: Map<String, Int>,
+    onComplete: () -> Unit
+) {
+    val toestelData = hashMapOf(
+        "name" to toestel.name,
+        "description" to toestel.description,
+        "price" to toestel.price,
+        "category" to toestel.category,
+        "photoUrl" to toestel.photoUrl,
+        "userId" to toestel.userId,
+        "availabilityStart" to startDateMap,
+        "availabilityEnd" to endDateMap
+    )
+
+    db.collection("toestellen").add(toestelData)
         .addOnSuccessListener {
             Log.d("AddToestelToFirestore", "Toestel added to Firestore: $toestel")
             onComplete()

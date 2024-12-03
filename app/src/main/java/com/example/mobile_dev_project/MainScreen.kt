@@ -20,7 +20,8 @@ fun MainScreen(
         }
     ) { paddingValues ->
         when (selectedTab) {
-            "home" -> HomeScreen(onLogoutClick = onLogoutClick, modifier = Modifier.padding(paddingValues))
+            "home" -> HomeScreen(
+                onLogoutClick = onLogoutClick,modifier = Modifier.padding(paddingValues))
             "map" -> MapScreen(modifier = Modifier.padding(paddingValues))
             "devices" -> ToestellenScreen(
                 modifier = Modifier.padding(paddingValues),
