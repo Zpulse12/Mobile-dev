@@ -164,8 +164,8 @@ fun ToestelCard(
                     contentDescription = "Toestel foto",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(100.dp),
-                    contentScale = ContentScale.FillWidth
+                        .heightIn(min = 100.dp, max = 300.dp),
+                    contentScale = ContentScale.Fit
                 )
                 Spacer(modifier = Modifier.height(4.dp))
             }
