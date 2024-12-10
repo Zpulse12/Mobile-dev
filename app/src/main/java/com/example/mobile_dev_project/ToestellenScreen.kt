@@ -357,6 +357,7 @@ fun RentDialog(
     var endDate by remember { mutableStateOf<LocalDate?>(null) }
     var rentedDates by remember { mutableStateOf<List<Pair<LocalDate, LocalDate>>>(emptyList()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var currentMonth by remember { mutableStateOf(LocalDate.now()) }
     val db = FirebaseFirestore.getInstance()
 
     // Fetch existing rentals
@@ -426,6 +427,36 @@ fun RentDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Month Navigation
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { 
+                            currentMonth = currentMonth.minusMonths(1)
+                        },
+                        enabled = currentMonth.isAfter(toestel.availabilityStart.minusMonths(1))
+                    ) {
+                        Text("<", color = Color(0xFF4CAF50))
+                    }
+                    
+                    Text(
+                        text = currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
+                        color = Color.White
+                    )
+                    
+                    IconButton(
+                        onClick = { 
+                            currentMonth = currentMonth.plusMonths(1)
+                        },
+                        enabled = currentMonth.isBefore(toestel.availabilityEnd.plusMonths(1))
+                    ) {
+                        Text(">", color = Color(0xFF4CAF50))
+                    }
+                }
+
                 // Calendar Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -443,23 +474,9 @@ fun RentDialog(
                 }
 
                 // Calendar Grid
-                val currentMonth = if (startDate != null) startDate!!.month else LocalDate.now().month
-                val daysInMonth = currentMonth.length(false)
-                val firstDayOfMonth = LocalDate.of(LocalDate.now().year, currentMonth, 1)
+                val firstDayOfMonth = LocalDate.of(currentMonth.year, currentMonth.month, 1)
                 val firstDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7
-
-                // Function to check if a date is available
-                fun isDateAvailable(date: LocalDate): Boolean {
-                    // Check if date is within toestel's availability period
-                    if (date.isBefore(toestel.availabilityStart) || date.isAfter(toestel.availabilityEnd)) {
-                        return false
-                    }
-                    
-                    // Check if date is not already rented
-                    return !rentedDates.any { (start, end) -> 
-                        date in start..end 
-                    }
-                }
+                val daysInMonth = currentMonth.month.length(currentMonth.year % 4 == 0)
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(7),
@@ -472,8 +489,9 @@ fun RentDialog(
 
                     // Days of the month
                     items(daysInMonth) { day ->
-                        val date = LocalDate.of(LocalDate.now().year, currentMonth, day + 1)
-                        val isAvailable = isDateAvailable(date)
+                        val date = LocalDate.of(currentMonth.year, currentMonth.month, day + 1)
+                        val isAvailable = date in toestel.availabilityStart..toestel.availabilityEnd &&
+                                !rentedDates.any { (start, end) -> date in start..end }
                         val isSelected = when {
                             startDate == null && endDate == null -> false
                             endDate == null -> date == startDate
@@ -496,12 +514,13 @@ fun RentDialog(
                                     when {
                                         startDate == null -> startDate = date
                                         endDate == null && date > startDate -> {
-                                            // Check if all dates in the range are available
                                             val allDatesInRange = startDate!!.datesUntil(date.plusDays(1)).toList()
-                                            if (allDatesInRange.all { isDateAvailable(it) }) {
+                                            if (allDatesInRange.all { d -> 
+                                                d in toestel.availabilityStart..toestel.availabilityEnd &&
+                                                !rentedDates.any { (start, end) -> d in start..end }
+                                            }) {
                                                 endDate = date
                                             } else {
-                                                // Show error or handle invalid range
                                                 errorMessage = "Niet alle dagen in deze periode zijn beschikbaar"
                                             }
                                         }
@@ -545,7 +564,7 @@ fun RentDialog(
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF4CAF50),
-                    contentColor = Color.Black
+                    contentColor = Color.White
                 )
             ) {
                 Text("Bevestig")
